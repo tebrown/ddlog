@@ -27,19 +27,18 @@ class DDHandler(DatagramHandler):
     :param localname: Use specified hostname as source host.
     :param facility: Replace facility with specified value. If specified,
         record.name will be passed as `logger` parameter.
-    :param level_names: Allows the use of string error level names instead
+    :par
         of numerical values. Defaults to False
     """
 
     def __init__(self, host, port=10518,
                  debugging_fields=True, extra_fields=True, fqdn=False,
-                 localname=None, facility=None, level_names=False):
+                 localname=None, facility=None):
         self.debugging_fields = debugging_fields
         self.extra_fields = extra_fields
         self.fqdn = fqdn
         self.localname = localname
         self.facility = facility
-        self.level_names = level_names
         DatagramHandler.__init__(self, host, port)
 
     def send(self, s):
@@ -48,14 +47,13 @@ class DDHandler(DatagramHandler):
     def makePickle(self, record):
         message_dict = make_message_dict(
             record, self.debugging_fields, self.extra_fields, self.fqdn,
-            self.localname, self.level_names, self.facility)
+            self.localname, self.facility)
         packed = message_to_json(message_dict)
         return packed
 
 
 
-def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname,
-                      level_names, facility=None):
+def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname, facility=None):
     if fqdn:
         host = socket.getfqdn()
     elif localname:
@@ -65,32 +63,38 @@ def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname,
     fields = {'version': "1.0",
               'host': host,
               'message': record.getMessage(),
-              'long_message': get_full_message(record.exc_info, record.getMessage()),
-              'time': datetime.datetime.fromtimestamp(record.created).isoformat(),
-              'level': SYSLOG_LEVELS.get(record.levelno, record.levelno),
-              'facility': facility or record.name,
               }
-
-    if level_names:
-        fields['level_name'] = logging.getLevelName(record.levelno)
-
-    if facility is not None:
-        fields.update({
-            'logger': record.name
-        })
 
     if debugging_fields:
         fields.update({
-            'file': record.pathname,
-            'line': record.lineno,
-            'function': record.funcName,
-            'pid': record.process,
-            'thread_name': record.threadName,
+              'args': record.args,
+              'created': record.created,
+              'filename': record.filename,
+              'funcName': record.funcName,
+              'levelname': record.levelname,
+              'logger.name': record.name,
+              'lineno': record.lineno,
+              'module': record.module,
+              'msecs': record.msecs,
+              'name': record.name,
+              'pathname': record.pathname,
+              'pid': record.process,
+              'processName': record.processName,
+              'relativeCreated': record.relativeCreated,
+              'logger.tid': record.thread,
+              'logger.thread_name': record.threadName
         })
-        # record.processName was added in Python 2.6.2
-        pn = getattr(record, 'processName', None)
-        if pn is not None:
-            fields['process_name'] = pn
+
+    if facility:
+        fields['facility'] = facility
+
+    if record.exc_info:
+        fields.update({
+            'error.message': str(record.exc_info[1]),
+            'error.stack': '\n'.join(traceback.format_exception(*record.exc_info)),
+            'error.kind': str(record.exc_info[0])
+        })
+
     if extra_fields:
         fields = add_extra_fields(fields, record)
     return fields
@@ -102,10 +106,6 @@ SYSLOG_LEVELS = {
     logging.INFO: 6,
     logging.DEBUG: 7,
 }
-
-
-def get_full_message(exc_info, message):
-    return '\n'.join(traceback.format_exception(*exc_info)) if exc_info else message
 
 
 def add_extra_fields(message_dict, record):
