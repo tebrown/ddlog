@@ -49,7 +49,7 @@ class DDHandler(DatagramHandler):
         message_dict = make_message_dict(
             record, self.debugging_fields, self.extra_fields, self.fqdn,
             self.localname, self.level_names, self.facility)
-        packed = message_to_pickle(message_dict)
+        packed = message_to_json(message_dict)
         return packed
 
 
@@ -133,7 +133,7 @@ def smarter_repr(obj):
     return repr(obj)
 
 
-def message_to_pickle(obj):
+def message_to_json(obj):
     """ convert object to a JSON-encoded string"""
     obj = sanitize(obj)
     serialized = json.dumps(obj)
