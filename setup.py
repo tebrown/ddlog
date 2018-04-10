@@ -5,7 +5,7 @@ def readme():
             return f.read()
 
 setup(name='ddlog',
-      version='0.1',
+      version='0.2',
       description='Logging handler for sending data to Datadog agent',
       long_description=readme(),
       url='http://github.com/tebrown/ddlog',
