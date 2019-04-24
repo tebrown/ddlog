@@ -5,10 +5,11 @@ def canSendUDPPacketOfSize(sock, packetSize):
    ip_address = "127.0.0.1"
    port = 5005
    try:
-      msg = "A" * packetSize
+      msg = b"A" * packetSize
       if (sock.sendto(msg, (ip_address, port)) == len(msg)):
          return True
-   except:
+   except Exception as e:
+      print(e)
       pass
    return False
 
@@ -17,6 +18,7 @@ def get_max_udp_packet_size_aux(sock, largestKnownGoodSize, smallestKnownBadSize
       return largestKnownGoodSize
    else:
       newMidSize = int((largestKnownGoodSize+smallestKnownBadSize)/2)
+      print("testing {}".format(newMidSize))
       if (canSendUDPPacketOfSize(sock, newMidSize)):
          return get_max_udp_packet_size_aux(sock, newMidSize, smallestKnownBadSize)
       else:
