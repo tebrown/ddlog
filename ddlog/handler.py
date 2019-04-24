@@ -13,6 +13,34 @@ if PY3:
 else:
     data, text = str, unicode
 
+def _canSendUDPPacketOfSize(sock, packetSize):
+   ip_address = "127.0.0.1"
+   port = 5005
+   try:
+      msg = "A" * packetSize
+      if (sock.sendto(msg, (ip_address, port)) == len(msg)):
+         return True
+   except:
+      pass
+   return False
+
+def _get_max_udp_packet_size_aux(sock, largestKnownGoodSize, smallestKnownBadSize):
+   if ((largestKnownGoodSize+1) == smallestKnownBadSize):
+      return largestKnownGoodSize
+   else:
+      newMidSize = int((largestKnownGoodSize+smallestKnownBadSize)/2)
+      if (_canSendUDPPacketOfSize(sock, newMidSize)):
+         return _get_max_udp_packet_size_aux(sock, newMidSize, smallestKnownBadSize)
+      else:
+         return _get_max_udp_packet_size_aux(sock, largestKnownGoodSize, newMidSize)
+
+def _get_max_udp_packet_size():
+   sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+   ret = _get_max_udp_packet_size_aux(sock, 0, 65508)
+   sock.close()
+   return ret or 8192-48-3  # 48 bytes ethernet header, plus 3 ...
+
+
 
 class DDHandler(DatagramHandler):
     """Graylog Extended Log Format handler
@@ -39,10 +67,16 @@ class DDHandler(DatagramHandler):
         self.fqdn = fqdn
         self.localname = localname
         self.facility = facility
+        self._max_pkt_size = _get_max_udp_packet_size()
         DatagramHandler.__init__(self, host, port)
 
     def send(self, s):
-        DatagramHandler.send(self, s)
+        print(self._max_pkt_size)
+        try:
+            DatagramHandler.send(self, s)
+        except OSError:
+            DatagramHandler.send(self, s[:self._max_pkt_size]+b"...")
+            
 
     def makePickle(self, record):
         message_dict = make_message_dict(
