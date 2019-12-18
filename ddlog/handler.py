@@ -55,18 +55,20 @@ class DDHandler(DatagramHandler):
     :param localname: Use specified hostname as source host.
     :param facility: Replace facility with specified value. If specified,
         record.name will be passed as `logger` parameter.
+    :param service: Replace service with specified value.
     :par
         of numerical values. Defaults to False
     """
 
     def __init__(self, host, port=10518,
                  debugging_fields=True, extra_fields=True, fqdn=False,
-                 localname=None, facility=None):
+                 localname=None, facility=None, service=None):
         self.debugging_fields = debugging_fields
         self.extra_fields = extra_fields
         self.fqdn = fqdn
         self.localname = localname
         self.facility = facility
+        self.service = service
         self._max_pkt_size = _get_max_udp_packet_size()
         DatagramHandler.__init__(self, host, port)
 
@@ -83,13 +85,13 @@ class DDHandler(DatagramHandler):
     def makePickle(self, record):
         message_dict = make_message_dict(
             record, self.debugging_fields, self.extra_fields, self.fqdn,
-            self.localname, self.facility)
+            self.localname, self.facility, self.service)
         packed = message_to_json(message_dict)
         return packed
 
 
 
-def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname, facility=None):
+def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname, facility, service):
     if fqdn:
         host = socket.getfqdn()
     elif localname:
@@ -123,6 +125,9 @@ def make_message_dict(record, debugging_fields, extra_fields, fqdn, localname, f
 
     if facility:
         fields['facility'] = facility
+
+    if service:
+        fields['service'] = service
 
     if record.exc_info:
         fields.update({
